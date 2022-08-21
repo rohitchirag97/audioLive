@@ -30,7 +30,14 @@ var UserSchema = new Schema({
         type: Boolean,
         default: false
     },
-    verifiedType: String,
+    verifiedType: {
+        type: Schema.Types.ObjectId,
+        ref: 'VerifiedType'
+    },
+    hasOfficialAccess: {
+        type: Boolean,
+        default: false
+    },
     usersentCharishma: {
         type: Number,
         default: 0
@@ -55,6 +62,15 @@ var UserSchema = new Schema({
         type: Number,
         default: 0
     },
+    coinsellerTransactions: [{  
+        soldto: {
+            type: Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        soldtouid: String,
+        quantity: Number,
+        soldDateTime: String,
+    }],
     isRecruiter: {
         type: Boolean,
         default: false
@@ -71,13 +87,28 @@ var UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Family'
     },
-    userMedals: {
+    userMedals: [{
         type: Schema.Types.ObjectId,
         ref: 'UserMedal'
-    },
+    }],
     blockList: [{
         type: Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    receivedGifts: [{
+        giftId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Gift'
+        },
+        quantity: {
+            type: Number,
+            default: 1  
+        },
+    }],
+    userTransactions: [{   
+        coinsamount: Number,
+        transactionDateTime: String,
+        TransactinId: String,
     }],
     created_at: {
         type: String

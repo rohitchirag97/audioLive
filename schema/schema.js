@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Device = require('../models/Device');
 const UserBan = require('../models/UserBan');
 const DeviceBan = require('../models/DeviceBan');
+const Gift = require('../models/Gift');
 
 const {
     GraphQLObjectType,
@@ -18,6 +19,7 @@ const {
     GraphQLFloat,
     GraphQLSchema,
     GraphQLList,
+    isTypeSystemDefinitionNode,
 } = require('graphql');
 
 function generateToken(user) {
@@ -54,6 +56,7 @@ const UserType = new GraphQLObjectType({
     name: 'User',
     fields: () => ({
         id: { type: GraphQLID },
+        uid: { type: GraphQLString },
         username: { type: GraphQLString },
         email: { type: GraphQLString },
         mobile: { type: GraphQLString },
@@ -61,16 +64,45 @@ const UserType = new GraphQLObjectType({
         frameId: { type: GraphQLID },
         rideId: { type: GraphQLID },
         bubbleId: { type: GraphQLID },
-        uid: { type: GraphQLString },
         hasSpecialUid: { type: GraphQLBoolean },
         specialUid: { type: GraphQLString },
         isVerified: { type: GraphQLBoolean },
         verifiedType: { type: GraphQLString },
+        hasOfficialAccess: { type: GraphQLBoolean },
         usersentCharishma: { type: GraphQLInt },
         userReceivedCharishma: { type: GraphQLInt },
+        userTags: { type: new GraphQLList(GraphQLString) },
+        walletCoins: { type: GraphQLInt },
+        isCoinSeller: { type: GraphQLBoolean },
+        SellerCoins: { type: GraphQLInt },
+        isRecruiter: { type: GraphQLBoolean },
+        nobleId: { type: GraphQLID },
+        agencyId: { type: GraphQLID },
+        FamilyId: { type: GraphQLID },
+        userMedals: { type: new GraphQLList(GraphQLString) },
+        blockList: { type: new GraphQLList(GraphQLString) },
+        receivedGifts: { type: new GraphQLList(GraphQLString) },
+        createdAt: { type: GraphQLString },
+        deviceList: { type: new GraphQLList(DeviceType) },
+        userTransactions: { type: new GraphQLList(GraphQLString) },
         token: { type: GraphQLString },
     })  
 });
+
+//GIFT Type
+const GiftType = new GraphQLObjectType({
+    name: 'Gift',
+    fields: () => ({
+        id: { type: GraphQLID },
+        giftName: { type: GraphQLString },
+        giftPrice: { type: GraphQLInt },
+        giftDescription: { type: GraphQLString },
+        giftImage: { type: GraphQLString },
+        giftType: { type: GraphQLString },
+        giftAnimation: { type: GraphQLString }
+    })
+});
+
 
 //Queries
 const query = new GraphQLObjectType({
@@ -81,7 +113,21 @@ const query = new GraphQLObjectType({
             resolve(_, args) {
                 return User.find();
             }
-        }
+        },
+        user: {
+            type: UserType,
+            args: { uid: { type: GraphQLID } },
+            resolve(_, args) {
+                const user = User.findOne({ uid: args.uid });
+                if (!user) {
+                    console.log('User not found');
+                    throw new Error('User not found');
+                }
+                console.log('User found');
+                console.log(user);
+                return user;
+            }
+        },
     }
 });
 
@@ -111,6 +157,7 @@ const mutation = new GraphQLObjectType({
                         macAddress: args.macAddress,
                     });
                     const res = await device.save();
+                    console.log(res);
                     return {
                         ...res._doc,
                         id: res._id
@@ -137,7 +184,7 @@ const mutation = new GraphQLObjectType({
                 }
                 const user = checkAuth(context);
                 const BanningUser = await User.findById(user.id);
-                if (!BanningUser.verifiedType === 'Official') {
+                if (!BanningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to ban devices');
                 }
                 const deviceBan = new DeviceBan({
@@ -167,7 +214,7 @@ const mutation = new GraphQLObjectType({
                 }
                 const user = checkAuth(context);
                 const UnbanningUser = await User.findById(user.id);
-                if (!UnbanningUser.verifiedType === 'Official') {
+                if (!UnbanningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to unban devices');
                 }
                 const deviceBan = await DeviceBan.findOne({ deviceId: device._id });
@@ -354,7 +401,7 @@ const mutation = new GraphQLObjectType({
                     throw new Error('User not found');
                 }
                 const banningUser = await User.findById(context.user.id);
-                if (!banningUser.verifiedType === 'Official') {
+                if (!banningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to ban users');
                 }
                 const userBan = new UserBan({
@@ -383,7 +430,7 @@ const mutation = new GraphQLObjectType({
                     throw new Error('User not found');
                 }
                 const banningUser = await User.findById(context.user.id);
-                if (!banningUser.verifiedType === 'Official') {
+                if (!banningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to unban users');
                 }
                 const res = await UserBan.findOneAndDelete({ userId: args.userId });
@@ -393,6 +440,184 @@ const mutation = new GraphQLObjectType({
                 }
             }
         },
+        updateUser: {
+            type: UserType,
+            args: {
+                id: { type: GraphQLString },
+                uid: { type: GraphQLString },
+                username: { type: GraphQLString },
+                email: { type: GraphQLString },
+                mobile: { type: GraphQLString },
+                password: { type: GraphQLString },
+                profilePic: { type: GraphQLString },
+                frameId: { type: GraphQLID },
+                rideId: { type: GraphQLID },
+                bubbleId: { type: GraphQLID },
+                hasSpecialUid: { type: GraphQLBoolean },
+                specialUid: { type: GraphQLString },
+                isVerified: { type: GraphQLBoolean },
+                verifiedType: { type: GraphQLString },
+                hasOfficialAccess: { type: GraphQLBoolean },
+                usersentCharishma: { type: GraphQLInt },
+                userReceivedCharishma: { type: GraphQLInt },
+                walletCoins: { type: GraphQLInt },
+                isCoinSeller: { type: GraphQLBoolean },
+                sellerCoins: { type: GraphQLInt },
+                isRecruiter: { type: GraphQLBoolean },
+                nobleId: { type: GraphQLID },
+                agencyId: { type: GraphQLID },
+                FamilyId: { type: GraphQLID },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                console.log(user);
+                const res = await User.findByIdAndUpdate(args.id, args);
+                return {
+                    ...res._doc,
+                    id: res._id
+                }
+            }
+        },
+        salecoins: {
+            type: UserType,
+            args: {
+                Sellerid: { type: GraphQLString },
+                coinsToSell: { type: GraphQLInt },
+                buyerId: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const seller = await User.findById(args.Sellerid);
+                if (!seller.isCoinSeller) {
+                    throw new Error('You are not a seller');
+                }
+                const buyer = await User.findById(args.buyerId);
+                if (!buyer) {
+                    throw new Error('Buyer not found');
+                }
+                if(seller.SellerCoins < args.coinsToSell) {
+                    throw new Error('You do not have enough coins to sell');
+                }
+                const sellerRes = await User.findByIdAndUpdate(args.Sellerid, {  SellerCoins: seller.SellerCoins - args.coinsToSell, $push: {
+                    coinsellerTransactions:{
+                        soldto: args.buyerId,
+                        soldtouid: buyer.uid,
+                        quantity: args.coinsToSell,
+                        soldDateTime: new Date().toISOString()
+                    }
+                } });
+                const buyerRes = await User.findByIdAndUpdate(args.buyerId, { walletCoins: buyer.walletCoins + args.coinsToSell });
+                return {
+                    ...sellerRes._doc,
+                    id: sellerRes._id
+                }
+            }
+        },
+        createGifts: {
+            type: GiftType,
+            args: {
+                id: { type: GraphQLString },
+                name: { type: GraphQLString },
+                price: { type: GraphQLInt },
+                description: { type: GraphQLString },
+                image: { type: GraphQLString },
+                GiftAnimation: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user.hasOfficialAccess) {
+                    throw new Error('You are not authorized to create gifts');
+                }
+                const newGift = new Gift({
+                    giftName: args.name,
+                    giftPrice: args.price,
+                    giftDescription: args.description,
+                    giftImage: args.image,
+                    giftAnimation: args.GiftAnimation,
+                });
+                const res = await newGift.save();
+                return res;
+            }
+        },
+        sendgift: {
+            type: UserType,
+            args: {
+                senderId: { type: GraphQLString },
+                receiverId: { type: GraphQLString },
+                giftId: { type: GraphQLString },
+                giftquantity: { type: GraphQLInt },
+            },
+            async resolve(_, args, context) {
+                const sender = await User.findById(args.senderId);
+                if (!sender) {
+                    throw new Error('Sender not found');
+                }
+                const receiver = await User.findById(args.receiverId);
+                if (!receiver) {
+                    throw new Error('Receiver not found');
+                }
+                const gift = await Gift.findById(args.giftId);
+                if (!gift) {
+                    throw new Error('Gift not found');
+                }
+                const giftRes = await Gift.findById(args.giftId);
+                if(sender.walletCoins < giftRes.giftPrice){
+                    throw new Error('You dont have enough coins');
+                }
+                const senderRes = await User.findByIdAndUpdate(args.senderId, { walletCoins: sender.walletCoins - giftRes.giftPrice, usersentCharishma: sender.usersentCharishma + giftRes.giftPrice });
+                //check if receiver has this gift in array and update the quantity
+                if(receiver.receivedGifts.includes(args.giftId)){
+                    const receiverRes = await User.findByIdAndUpdate(args.receiverId, { receivedGifts: receiver.receivedGifts.map(receivedgift => {
+                        if(receivedgift.giftId === args.giftId){
+                            receivedgift.quantity += args.giftquantity;
+                        }
+                    }), userReceivedCharishma: receiver.userReceivedCharishma + giftRes.giftPrice });
+                    return {
+                        ...receiverRes._doc,
+                        id: receiverRes._id
+                    }
+                }
+                //push data to receiver's gift array
+                const receiverRes = await User.findByIdAndUpdate(args.receiverId, {
+                    $push: {
+                        receivedGifts: {
+                            giftId: args.giftId,
+                            quantity: args.giftquantity,
+                        }
+                    }, userReceivedCharishma: receiver.userReceivedCharishma + giftRes.giftPrice
+                });
+                return {
+                    ...senderRes._doc,
+                    id: senderRes._id
+                }
+            }
+        },
+        rechaarge:{
+            type: UserType,
+            args: {
+                id: { type: GraphQLString },
+                rechargeAmount: { type: GraphQLInt },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                const res = await User.findByIdAndUpdate(args.id, { walletCoins: user.walletCoins + args.rechargeAmount, userTransactions: {
+                    $push: {
+                        transactionId: await uuidv4(),
+                        transactionAmount: args.rechargeAmount,
+                        transactionDateTime: new Date().toISOString()
+                    }
+                } });
+                return {
+                    ...res._doc,
+                    id: res._id
+                }
+            }
+        }
     }
 });
 
