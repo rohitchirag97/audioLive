@@ -9,6 +9,25 @@ var DeviceSchema = new Schema({
     phoneOsVersion: String,
     phoneScreenSize: String,
     macAddress: String,
+    isBanned: {
+        type: Boolean,
+        default: false
+    },
+    banReason: String,
+    banDate: String,
+    banExpiryDate: String,
+    banningUnbanAdmin: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    userList: [
+        { 
+            userId: { 
+                type: Schema.Types.ObjectId, 
+                ref: 'User'
+            }
+        }
+    ]
 });
 
 module.exports = mongoose.model('Device', DeviceSchema);

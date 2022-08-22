@@ -71,10 +71,20 @@ var UserSchema = new Schema({
         quantity: Number,
         soldDateTime: String,
     }],
+    roomId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Room'
+    },
     isRecruiter: {
         type: Boolean,
         default: false
     },
+    recruitedAgencies: [{
+        agencyId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Agency'
+        },
+    }],
     nobleId: {
         type: Schema.Types.ObjectId,
         ref: 'Noble'
@@ -105,17 +115,46 @@ var UserSchema = new Schema({
             default: 1  
         },
     }],
+    isbanned: {
+        type: Boolean,
+        default: false
+    },
+    banReason: String,
+    banDate: String,
+    banExpiryDate: String,
+    banningUnbanAdmin: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    },
     userTransactions: [{   
         coinsamount: Number,
         transactionDateTime: String,
         TransactinId: String,
     }],
+    userNotifications: [{
+        notificationType: String,
+        coinSellerId: {
+            type: Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        agencyId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Agency'
+        },
+        agencyUid: String,   
+        message: String,
+        coinSellerUid: String,
+        CoinsPurchased: Number,
+        notificationDateTime: String,
+    }],
     created_at: {
         type: String
     },
     deviceList: [{
+        deviceId:{
         type: Schema.Types.ObjectId,
         ref: 'Device'
+        }
     }],
 });
 

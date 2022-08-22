@@ -6,9 +6,8 @@ const checkAuth = require('../utils/check-auth');
 
 const User = require('../models/User');
 const Device = require('../models/Device');
-const UserBan = require('../models/UserBan');
-const DeviceBan = require('../models/DeviceBan');
 const Gift = require('../models/Gift');
+const Agency = require('../models/Agency');
 
 const {
     GraphQLObjectType,
@@ -37,6 +36,11 @@ const generateUID = async () => {
     return userLength + 6300600;
 }
 
+const generateAgencyUID = async () => {
+    const AgencyLength = await Agency.find().countDocuments();
+    return AgencyLength + 3000;
+}
+
 //Device Tyepe
 const DeviceType = new GraphQLObjectType({
     name: 'Device',
@@ -48,8 +52,37 @@ const DeviceType = new GraphQLObjectType({
         phoneOsVersion: { type: GraphQLString },
         phoneScreenSize: { type: GraphQLString },
         macAddress: { type: GraphQLString },
+        isBanned: { type: GraphQLBoolean },
+        banReason: { type: GraphQLString },
+        banDate: { type: GraphQLString },
+        banExpiryDate: { type: GraphQLString },
+        deviceUsers: {
+            type: new GraphQLList(UserType),
+            resolve(parent, args) {
+                return User.find({
+                    'deviceList.deviceId': parent.id
+                });
+            }
+        },
+        banningUnbanAdmin: {
+            type: UserType,
+            resolve(parent, args) {
+                return User.findById(parent.banningUnbanAdmin);
+            }
+        }
     })
 });
+
+//transaction Type
+const TransactionType = new GraphQLObjectType({
+    name: 'Transaction',
+    fields: () => ({
+        id: { type: GraphQLString },
+        coinsAmount: { type: GraphQLInt },
+        sellerId: { type: GraphQLString },
+    })
+});
+
 
 //User Type
 const UserType = new GraphQLObjectType({
@@ -67,11 +100,9 @@ const UserType = new GraphQLObjectType({
         hasSpecialUid: { type: GraphQLBoolean },
         specialUid: { type: GraphQLString },
         isVerified: { type: GraphQLBoolean },
-        verifiedType: { type: GraphQLString },
         hasOfficialAccess: { type: GraphQLBoolean },
         usersentCharishma: { type: GraphQLInt },
         userReceivedCharishma: { type: GraphQLInt },
-        userTags: { type: new GraphQLList(GraphQLString) },
         walletCoins: { type: GraphQLInt },
         isCoinSeller: { type: GraphQLBoolean },
         SellerCoins: { type: GraphQLInt },
@@ -79,15 +110,46 @@ const UserType = new GraphQLObjectType({
         nobleId: { type: GraphQLID },
         agencyId: { type: GraphQLID },
         FamilyId: { type: GraphQLID },
-        userMedals: { type: new GraphQLList(GraphQLString) },
-        blockList: { type: new GraphQLList(GraphQLString) },
-        receivedGifts: { type: new GraphQLList(GraphQLString) },
         createdAt: { type: GraphQLString },
-        deviceList: { type: new GraphQLList(DeviceType) },
-        userTransactions: { type: new GraphQLList(GraphQLString) },
         token: { type: GraphQLString },
+        isbanned: { type: GraphQLBoolean },
+        banReason: { type: GraphQLString },
+        banDate: { type: GraphQLString },
+        banExpiryDate: { type: GraphQLString },
+        userWhoBanned: {
+            type: UserType,
+            resolve(parent, args) {
+                return User.findById(parent.banningUnbanAdmin);
+            }
+        },
+        transactions:{
+            type: new GraphQLList(TransactionType),
+            resolve(parent, args) {
+                return Transaction.find({ userId: parent.id });
+            }
+        },
+        devices:{
+            type: new GraphQLList(DeviceType),
+            async resolve(parent, args) {
+                return await Device.find({ 'userList.userId': parent.id });
+            }
+        }
     })  
 });
+
+//Agency Type
+const AgencyType = new GraphQLObjectType({
+    name: 'Agency',
+    fields: () => ({
+        id: { type: GraphQLID },
+        agencyuid: { type: GraphQLString },
+        agencyName: { type: GraphQLString },
+        agencyAdmins: { type: new GraphQLList(GraphQLString) },
+        agencyMembers: { type: new GraphQLList(GraphQLString) },
+        agencyowner: { type: GraphQLString },
+    })
+});
+
 
 //GIFT Type
 const GiftType = new GraphQLObjectType({
@@ -174,28 +236,19 @@ const mutation = new GraphQLObjectType({
                 deviceId: { type: GraphQLString },
                 banReason: { type: GraphQLString },
                 baningDate: { type: GraphQLString },
-                deviceBanProofs: { type: new GraphQLList(GraphQLString) },
                 banExpiry: { type: GraphQLString },
+                adminId: { type: GraphQLString },
             },
             async resolve(_, args, context) {
                 const device = await Device.findOne({ deviceId: args.deviceId });
                 if (!device) {
                     throw new Error('Device not found');
                 }
-                const user = checkAuth(context);
-                const BanningUser = await User.findById(user.id);
+                const BanningUser = await User.findById(args.adminId);
                 if (!BanningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to ban devices');
                 }
-                const deviceBan = new DeviceBan({
-                    deviceId: device._id,
-                    baningReson: args.banReason,
-                    baningDate: args.baningDate,
-                    deviceBanProofs: args.deviceBanProofs,
-                    banExpiryDate: args.banExpiry,
-                    baningUserId: user.id,
-                });
-                const res = await deviceBan.save();
+                const res = await Device.findOneAndUpdate({ deviceId: args.deviceId }, { $set: { isBanned: true, banReason: args.banReason, banDate: args.baningDate, banExpiryDate: args.banExpiry } });        
                 return {
                     ...res._doc,
                     id: res._id
@@ -206,22 +259,26 @@ const mutation = new GraphQLObjectType({
             type: DeviceType,
             args: {
                 deviceId: { type: GraphQLString },
+                adminId: { type: GraphQLString },
             },
             async resolve(_, args, context) {
                 const device = await Device.findOne({ deviceId: args.deviceId });
                 if (!device) {
                     throw new Error('Device not found');
                 }
-                const user = checkAuth(context);
-                const UnbanningUser = await User.findById(user.id);
+                const UnbanningUser = await User.findById(args.adminId);
                 if (!UnbanningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to unban devices');
                 }
-                const deviceBan = await DeviceBan.findOne({ deviceId: device._id });
-                if (!deviceBan) {
-                    throw new Error('Device is not banned');
-                }
-                const res = await DeviceBan.findByIdAndDelete(deviceBan.id);
+                const res = await Device.findOneAndUpdate({ deviceId: args.deviceId }, { 
+                    $set: { 
+                        isBanned: false, 
+                        banReason:"", 
+                        banDate:"", 
+                        banExpiryDate:"", 
+                        banningUnbanAdmin:args.adminId 
+                    } 
+                });
                 return {
                     ...res._doc,
                     id: res._id
@@ -238,10 +295,18 @@ const mutation = new GraphQLObjectType({
                 deviceId: { type: GraphQLString },
             },
             async resolve(_, args) {
+                const device = await Device.findById(args.deviceId);
+                if (!device) {
+                    throw new Error('Device not found');
+                }
+                if(device.userList.length >= 2) {
+                    throw new Error('You Can Create Only 2 Users per Device');
+                }
                 const user = await User.findOne({ email: args.email });
                 if (user) {
                     throw new Error('User already exists');
                 }
+
                 let newUser = new User({
                     username: args.username,
                     email: args.email,
@@ -249,10 +314,11 @@ const mutation = new GraphQLObjectType({
                     uid: await generateUID(),
                     profilePic: args.profilePic,
                     deviceList: [{
-                        deviceId: args.deviceId,
+                        deviceId: device._id,
                     }]
                 });
                 const res = await newUser.save();
+                const updatedDevice = await Device.findByIdAndUpdate(device._id, { $push: { userList: {userId: newUser._id} } });
                 const token = generateToken(res);
                 return {
                     ...res._doc,
@@ -274,10 +340,16 @@ const mutation = new GraphQLObjectType({
                 if (!user) {
                     throw new Error('User not found');
                 }
+                if(!user.isbanned) {
+                    throw new Error('User is banned');
+                } 
                 const isEqual = await bcrypt.compare(args.password, user.password);
                 if (!isEqual) {
                     throw new Error('Password incorrect');
                 }
+                device.userList.push({
+                    userId: user._id
+                });
                 if (!user.deviceList.includes(device._id)) {
                     user.deviceList.push(device._id);
                     await user.save();
@@ -296,10 +368,12 @@ const mutation = new GraphQLObjectType({
                 email: { type: GraphQLString },
                 name: { type: GraphQLString },
                 profilePic: { type: GraphQLString },
-                password: { type: GraphQLString }
+                password: { type: GraphQLString },
+                deveiceId: { type: GraphQLString }
             },
             async resolve(_, args) {
                 const user = await User.findOne({ email: args.email });
+                const device = await Device.findById(args.deviceId);
                 if (!user) {
                     const newUser = new User({
                         email: args.email,
@@ -307,7 +381,7 @@ const mutation = new GraphQLObjectType({
                         uid: await generateUID(),
                         profilePic: args.profilePic,
                     });
-                    const res = newUser.save();
+                    const res = await newUser.save();
                     const token = generateToken(res);
                     return {
                         ...res._doc,
@@ -315,6 +389,9 @@ const mutation = new GraphQLObjectType({
                         token
                     };
                 } else {
+                    if(user.isbanned) {
+                        throw new Error('User is banned');
+                    } 
                     const token = generateToken(user);
                     return {
                         ...user._doc,
@@ -348,6 +425,9 @@ const mutation = new GraphQLObjectType({
                         token
                     };
                 } else {
+                    if(user.isbanned) {
+                        throw new Error('User is banned');
+                    }
                     const token = generateToken(user);
                     return {
                         ...user._doc,
@@ -377,6 +457,9 @@ const mutation = new GraphQLObjectType({
                         token
                     };
                 } else {
+                    if(user.isbanned) {
+                        throw new Error('User is banned');
+                    }
                     const token = generateToken(user);
                     return {
                         ...user._doc,
@@ -391,31 +474,31 @@ const mutation = new GraphQLObjectType({
             args: {
                 userId: { type: GraphQLString },
                 banReason: { type: GraphQLString },
-                baningDate: { type: GraphQLString },
-                userBanProofs: { type: new GraphQLList(GraphQLString) },
-                banExpiry: { type: GraphQLString },
+                banDate: { type: GraphQLString },
+                banExpiryDate: { type: GraphQLString },
+                banningunbanAdmin: { type: GraphQLString },
             },
             async resolve(_, args, context) {
                 const user = await User.findById(args.userId);
                 if (!user) {
                     throw new Error('User not found');
                 }
-                const banningUser = await User.findById(context.user.id);
+                const banningUser = await User.findById(args.banningunbanAdmin);
                 if (!banningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to ban users');
                 }
-                const userBan = new UserBan({
-                    userId: user._id,
-                    baningReson: args.banReason,
-                    baningDate: args.baningDate,
-                    userBanProofs: args.userBanProofs,
-                    banExpiryDate: args.banExpiry,
-                    baningUserId: banningUser.id,
-                }); 
-                const res = await userBan.save();
+                const updatedUser = await User.findByIdAndUpdate(args.userId, {
+                    $set: {
+                        isbanned: true,
+                        banReason: args.banReason,
+                        banDate: new Date().toISOString(),
+                        banExpiryDate: new Date(args.banExpiryDate).toISOString(),
+                        banningUnbanAdmin: args.banningunbanAdmin,
+                    }
+                });
                 return {
-                    ...res._doc,
-                    id: res._id
+                    ...updatedUser._doc,
+                    id: updatedUser._id,
                 }
             }
         },
@@ -423,17 +506,26 @@ const mutation = new GraphQLObjectType({
             type: UserType,
             args: {
                 userId: { type: GraphQLString },
+                adminId: { type: GraphQLString },
             },
-            async resolve(_, args, context) {
+            async resolve(_, args) {
                 const user = await User.findById(args.userId);
                 if (!user) {
                     throw new Error('User not found');
                 }
-                const banningUser = await User.findById(context.user.id);
+                const banningUser = await User.findById(args.adminId);
                 if (!banningUser.hasOfficialAccess) {
                     throw new Error('You are not authorized to unban users');
                 }
-                const res = await UserBan.findOneAndDelete({ userId: args.userId });
+                const res = await User.findByIdAndUpdate(args.userId, {
+                    $set: {
+                        isbanned: false,
+                        banReason: '',
+                        banDate: '',
+                        banExpiryDate: '',
+                        banningUnbanAdmin: args.adminId,
+                    }
+                });
                 return {
                     ...res._doc,
                     id: res._id
@@ -462,7 +554,7 @@ const mutation = new GraphQLObjectType({
                 userReceivedCharishma: { type: GraphQLInt },
                 walletCoins: { type: GraphQLInt },
                 isCoinSeller: { type: GraphQLBoolean },
-                sellerCoins: { type: GraphQLInt },
+                SellerCoins: { type: GraphQLInt },
                 isRecruiter: { type: GraphQLBoolean },
                 nobleId: { type: GraphQLID },
                 agencyId: { type: GraphQLID },
@@ -508,7 +600,17 @@ const mutation = new GraphQLObjectType({
                         soldDateTime: new Date().toISOString()
                     }
                 } });
-                const buyerRes = await User.findByIdAndUpdate(args.buyerId, { walletCoins: buyer.walletCoins + args.coinsToSell });
+                const buyerRes = await User.findByIdAndUpdate(args.buyerId, { walletCoins: buyer.walletCoins + args.coinsToSell, $push: {
+                    userNotifications:{
+                        notificationType: 'coins',
+                        coinSellerId: args.Sellerid,
+                        coinSellerUid: seller.uid,
+                        message: `You have Purchased ${args.coinsToSell} coins From Official Coin Seller ${seller.uid}`,
+                        CoinsPurchased: args.coinsToSell,
+                        notificationDateTime: new Date().toISOString()
+                    }
+                }
+});
                 return {
                     ...sellerRes._doc,
                     id: sellerRes._id
@@ -617,7 +719,58 @@ const mutation = new GraphQLObjectType({
                     id: res._id
                 }
             }
-        }
+        },
+        createAgency: {
+            type: AgencyType,
+            args: {
+                creatorid: { type: GraphQLString },
+                ownerid: { type: GraphQLString },
+                RecruiterId: { type: GraphQLString },
+                agencyName: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const creator = await User.findById(args.creatorid);
+                if (!creator.hasOfficialAccess) {
+                    throw new Error('You are not authorized to create agency');
+                }
+                const owner = await User.findById(args.ownerid);
+                if (!owner) {
+                    throw new Error('Owner not found');
+                }
+                const existingagency = await Agency.findOne({ agencyowner: args.ownerid });
+                if (existingagency) {
+                    throw new Error('User already have an agency');
+                }
+                const recruiter = await User.findById(args.RecruiterId);
+                if (!recruiter) {
+                    throw new Error('Recruiter not found');
+                }
+                if (!recruiter.isRecruiter) {
+                    throw new Error('not a Valid Recruiter');
+                }
+                const newAgency = new Agency({
+                    agencyName: args.agencyName,
+                    agencyuid:await generateAgencyUID(),
+                    agencyowner: args.ownerid,
+                    agencyRecruiter: args.RecruiterId,
+                    agencyCreator: args.creatorid,
+                    agencyMembers: [{agencyMemberId: args.ownerid}],
+                });
+                const createdAgency = await newAgency.save();
+                const updatedrecruiter = await User.findByIdAndUpdate(args.recruiter, { $push: {
+                    recruitedAgencies: {
+                        agencyId: createdAgency._id,
+                    }
+                }
+                });
+                const updatedOwner = await User.findByIdAndUpdate(args.ownerid, { agencyId: createdAgency._id});
+                return {
+                    ...createdAgency._doc,
+                    id: createdAgency._id
+                }
+            }
+        },
+
     }
 });
 
