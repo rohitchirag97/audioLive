@@ -93,6 +93,7 @@ var UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Agency'
     },
+    agencyRole: String,
     FamilyId: {
         type: Schema.Types.ObjectId,
         ref: 'Family'
@@ -156,6 +157,14 @@ var UserSchema = new Schema({
         ref: 'Device'
         }
     }],
+    agencyUnderOfficialifOfficial:[
+        {
+            agencyId: {
+                type: Schema.Types.ObjectId,
+                ref: 'Agency'
+            },
+        }
+    ]
 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -4,10 +4,22 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config(); // Load .env file
 const checkAuth = require('../utils/check-auth');
 
-const User = require('../models/User');
-const Device = require('../models/Device');
-const Gift = require('../models/Gift');
 const Agency = require('../models/Agency');
+const Bubble = require('../models/Bubble');
+const Device = require('../models/Device');
+const Family = require('../models/Family');
+const Frame = require('../models/Frame');
+const Gift = require('../models/Gift');
+const Noble = require('../models/Noble');
+const Ride = require('../models/Ride');
+const Room = require('../models/Room');
+const RoomWallpaper = require('../models/RoomWallpaper');
+const Transaction = require('../models/Transaction');
+const User = require('../models/User');
+const UserMedal = require('../models/UserMedal');
+const UserTag = require('../models/UserTag');
+const VerificationType = require('../models/VerificationType');
+
 
 const {
     GraphQLObjectType,
@@ -15,10 +27,8 @@ const {
     GraphQLString,
     GraphQLBoolean,
     GraphQLInt,
-    GraphQLFloat,
     GraphQLSchema,
     GraphQLList,
-    isTypeSystemDefinitionNode,
 } = require('graphql');
 
 function generateToken(user) {
@@ -40,6 +50,40 @@ const generateAgencyUID = async () => {
     const AgencyLength = await Agency.find().countDocuments();
     return AgencyLength + 3000;
 }
+
+//Agency Type
+const AgencyType = new GraphQLObjectType({
+    name: 'Agency',
+    fields: () => ({
+        id: { type: GraphQLID },
+        agencyName: { type: GraphQLString },
+        agencyuid: { type: GraphQLString },
+        agencyMembers: { 
+            type: new GraphQLList(UserType),
+            resolve(parent, args) {
+                return User.find({ agencyId: parent.id });
+            } 
+        },
+        agencyowner: { 
+            type: UserType,
+            async resolve(parent, args) {
+                return await User.findById(parent.agencyowner);
+            }  
+         },
+        agencyRecruiter: { 
+            type: UserType,
+            async resolve(parent, args) {
+                return await User.findById(parent.agencyRecruiter);
+            }
+        },
+        agencyOfficial: { 
+            type: UserType,
+            async resolve(parent, args) {
+                return await User.findById(parent.agencyCreator);
+            } 
+        },
+    })
+});
 
 //Device Tyepe
 const DeviceType = new GraphQLObjectType({
@@ -109,6 +153,7 @@ const UserType = new GraphQLObjectType({
         isRecruiter: { type: GraphQLBoolean },
         nobleId: { type: GraphQLID },
         agencyId: { type: GraphQLID },
+        agencyRole: { type: GraphQLString },
         FamilyId: { type: GraphQLID },
         createdAt: { type: GraphQLString },
         token: { type: GraphQLString },
@@ -135,19 +180,6 @@ const UserType = new GraphQLObjectType({
             }
         }
     })  
-});
-
-//Agency Type
-const AgencyType = new GraphQLObjectType({
-    name: 'Agency',
-    fields: () => ({
-        id: { type: GraphQLID },
-        agencyuid: { type: GraphQLString },
-        agencyName: { type: GraphQLString },
-        agencyAdmins: { type: new GraphQLList(GraphQLString) },
-        agencyMembers: { type: new GraphQLList(GraphQLString) },
-        agencyowner: { type: GraphQLString },
-    })
 });
 
 
@@ -188,6 +220,17 @@ const query = new GraphQLObjectType({
                 console.log('User found');
                 console.log(user);
                 return user;
+            }
+        },
+        agency: {
+            type: AgencyType,
+            args: { agencyuid: { type: GraphQLID } },
+            resolve(_, args) {
+                const agency = Agency.findOne({ agencyuid: args.agencyuid });
+                if (!agency) {
+                    throw new Error('Agency not found');
+                }
+                return agency;
             }
         },
     }
@@ -751,10 +794,10 @@ const mutation = new GraphQLObjectType({
                 const newAgency = new Agency({
                     agencyName: args.agencyName,
                     agencyuid:await generateAgencyUID(),
-                    agencyowner: args.ownerid,
                     agencyRecruiter: args.RecruiterId,
+                    agencyowner: args.ownerid,
                     agencyCreator: args.creatorid,
-                    agencyMembers: [{agencyMemberId: args.ownerid}],
+                    agencyMembers: [{ agencyMemberId: args.ownerid}],
                 });
                 const createdAgency = await newAgency.save();
                 const updatedrecruiter = await User.findByIdAndUpdate(args.recruiter, { $push: {
@@ -763,14 +806,111 @@ const mutation = new GraphQLObjectType({
                     }
                 }
                 });
-                const updatedOwner = await User.findByIdAndUpdate(args.ownerid, { agencyId: createdAgency._id});
+                await updatedrecruiter.save();
+                const updatedOwner = await User.findByIdAndUpdate(args.ownerid, { agencyId: createdAgency.id, agencyRole: 'owner' });
+                const updateofficial = await User.findByIdAndUpdate(args.creatorid, { $push: {
+                        agencyUnderOfficialifOfficial:{
+                            agencyId: createdAgency.id,
+                        }
+                    }
+                });
+                await updateofficial.save();
                 return {
                     ...createdAgency._doc,
                     id: createdAgency._id
                 }
             }
         },
-
+        joinAgency: {
+            type: AgencyType,
+            args: {
+                id: { type: GraphQLString },
+                agencyId: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                const agency = await Agency.findById(args.agencyId);
+                if (!agency) {
+                    throw new Error('Agency not found');
+                }
+                if(user.agencyId){
+                    const prevAgency = await Agency.findById(user.agencyId);
+                    throw new Error(`User is Already in ${prevAgency.agencyName} Agency`);
+                }
+                const updatedUser = await User.findByIdAndUpdate(args.id, { agencyId: args.agencyId, agencyRole: 'member' });
+                const updatedAgency = await Agency.findByIdAndUpdate(args.agencyId, { 
+                    $push: {
+                        agencyMembers: {
+                            agencyMemberId: args.id,
+                        }
+                    }
+                });
+                updatedAgency.save();
+                return {
+                    ...updatedAgency._doc,
+                    id: updatedAgency._id
+                }
+            }
+        },
+        createAgencyAdmin: {
+            type: AgencyType,
+            args: {
+                id: { type: GraphQLString },
+                agencyId: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                agencyAdmins = await User.find({ agencyId: args.agencyId, agencyRole: 'admin' });
+                if (agencyAdmins.length >= 3) {
+                    throw new Error('You Can only have 3 admins');
+                }
+                if(user.agencyId == args.agencyId){
+                    const agency = await Agency.findById(args.agencyId);
+                    if (!agency) {
+                        throw new Error('Agency not found');
+                    }
+                    const updatedUser = await User.findByIdAndUpdate(args.id, { agencyRole: 'admin' });
+                    return {
+                        ...updatedUser._doc,
+                        id: updatedUser._id
+                    }
+                } else {
+                throw new Error('User is not in this agency');
+                }
+            }
+        },
+        removeAgencyAdmin: {
+            type: AgencyType,
+            args: {
+                id: { type: GraphQLString },
+                agencyId: { type: GraphQLString },
+            },
+            async resolve(_, args, context) {
+                const user = await User.findById(args.id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                if(user.agencyId == args.agencyId){
+                    const agency = await Agency.findById(args.agencyId);
+                    if (!agency) {
+                        throw new Error('Agency not found');
+                    }
+                    const updatedUser = await User.findByIdAndUpdate(args.id, { agencyRole: 'member' });
+                    return {
+                        ...updatedUser._doc,
+                        id: updatedUser._id
+                    }
+                } else {
+                throw new Error('User is not in this agency');
+                }
+            }
+        },
     }
 });
 

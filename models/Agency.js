@@ -4,15 +4,12 @@ const Schema = mongoose.Schema;
 const AgencySchema = new Schema({
     agencyName: String,
     agencyuid: String,
-    agencyAdmins: [{
+    
+    agencyMembers: [{
+        agencyMemberId:{
         type: Schema.Types.ObjectId,
         ref: 'User'
-    }],
-    agencyMembers: [{
-        agencyMemberId: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        },
+        }
     }],
     agencyowner: {
         type: Schema.Types.ObjectId,
