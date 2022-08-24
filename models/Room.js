@@ -7,6 +7,10 @@ const RoomSchema = new Schema({
     roomPassword: String,
     RoomCover: String,
     membershipFees: Number,
+    WallPaper: {
+        type: Schema.Types.ObjectId,
+        ref: 'RoomWallpaper'
+    },
     roomOwner: {
         uid: String,
     },
@@ -23,13 +27,7 @@ const RoomSchema = new Schema({
             uid: String,
         },
         userRole: String,
-    }],
-    roomAdmins: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        }
-    ],
+    }]
 });
 
 module.exports = mongoose.model('Room', RoomSchema);

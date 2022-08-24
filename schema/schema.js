@@ -251,7 +251,6 @@ const NobleType = new GraphQLObjectType({
     })
 });
 
-
 //Ride Type
 const RideType = new GraphQLObjectType({
     name: 'Ride',
@@ -274,6 +273,12 @@ const RoomType = new GraphQLObjectType({
         roomPassword: { type: GraphQLString },
         RoomCover: { type: GraphQLString },
         membershipFees: { type: GraphQLInt },
+        WallPaper: {
+            type: WallpaperType,
+            resolve(parent, args) {
+                return RoomWallpaper.findById(parent.WallPaperId);
+            }
+        },
         roomOwner: {
             type: UserType,
             resolve(parent, args) {
@@ -284,7 +289,8 @@ const RoomType = new GraphQLObjectType({
             type: new GraphQLList(UserType),
             resolve(parent, args) {
                 return User.find({ uid: parent.roomMembers.uid.uid });
-            }
+            },
+            userRole: { type: GraphQLString }
         },
         kickList: {
             type: new GraphQLList(UserType),
@@ -294,3 +300,83 @@ const RoomType = new GraphQLObjectType({
         },
     })
 });
+
+//Room Wallpaper Type
+const WallpaperType = new GraphQLObjectType({
+    name: 'RoomWallpaper',
+    fields: () => ({
+        id: { type: GraphQLID },
+        wallpaperName: { type: GraphQLString },
+        wallpaperPath: { type: GraphQLString },
+        wallpaperPrice: { type: GraphQLInt },
+        wallpaperType: { type: GraphQLString },
+    })
+});
+
+//Transaction Type
+const TransactionType = new GraphQLObjectType({
+    name: 'Transaction',
+    fields: () => ({
+        id: { type: GraphQLID },
+        transactionType: { type: GraphQLString },
+        coins: { type: GraphQLInt },
+        transactionDateTime: { type: GraphQLString },
+        transactionUser: {
+            type: UserType,
+            resolve(parent, args) {
+                return User.findOne({ uid: parent.transactionUser.uid });
+            }
+        },
+    })
+});
+
+//User Type
+const UserType = new GraphQLObjectType({
+    name: 'User',
+    fields: () => ({
+        id: { type: GraphQLID },
+        uid: { type: GraphQLString },
+        userName: { type: GraphQLString },
+        email: { type: GraphQLString },
+        mobile: { type: GraphQLString },
+        password: { type: GraphQLString },
+        profilePic: { type: GraphQLString },
+        hasNobleSpecialUid: { type: GraphQLBoolean },
+        specialUid: { type: GraphQLString },
+        isVerified: { type: GraphQLBoolean },
+        verifications: {
+            type: new GraphQLList(VerificationType),
+            resolve(parent, args) {
+                return Verification.findById(parent.verifiedType);
+            }
+        },
+        frame: {
+            type: FrameType,
+            resolve(parent, args) {
+                return Frame.findById(parent.frame);
+            }
+        },
+        ride: {
+            type: RideType,
+            resolve(parent, args) {
+                return Ride.findById(parent.ride);
+            }
+        },
+        bubble:{
+            type: BubbleType,
+            resolve(parent, args) {
+                return Bubble.findById(parent.bubble);
+            }
+        },
+        hadOfficialAccess: { type: GraphQLBoolean },
+        userSentCharisma: { type: GraphQLInt },
+        userReceivedCharisma: { type: GraphQLInt },
+        userTags: {
+            type: new GraphQLList(UserTagType),
+            resolve(parent, args) {
+                return UserTag.findById(parent.userTags);
+            }
+        },
+    })
+});
+

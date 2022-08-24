@@ -4,7 +4,8 @@ const Schema = mongoose.Schema;
 const TransactionSchema = new Schema({
     coinsAmount: Number,
     TransactionDateTine: String,
-    sellerId: { type: Schema.Types.ObjectId, ref: 'User' },
+    transactionUser: { uid: String },
+    transactionType: String,
 });
 
 module.exports = mongoose.model('Transaction', TransactionSchema);
