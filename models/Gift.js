@@ -1,10 +1,14 @@
+
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const GiftSchema = new Schema({
     giftName: String,
     giftPrice: Number,
-    giftDescription: String,
+    giftEvent: {
+        type: Schema.Types.ObjectId,
+        ref: 'Event'
+    },
     giftImage: String,
     giftAnimation: String,
     giftType: String,

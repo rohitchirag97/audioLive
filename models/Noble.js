@@ -3,9 +3,9 @@ const Schema = mongoose.Schema;
 
 const NobleSchema = new Schema({
     NobleName: String,
-    NobleDescription: String,
     boblePrice: Number,
-    hasNobleSpecialUid: Boolean, 
+    hasNobleSpecialUid: Boolean,
+    specialNobleUid: String, 
     NobleImagePath: String,
     hasNobleBadge: Boolean,
     NobleBadgeImagePath: String,
@@ -13,14 +13,25 @@ const NobleSchema = new Schema({
     hasNobleSeat: Boolean,
     goldbackperDay: Number,
     hasNobleFrame: Boolean,
-    NobleFrameImagePath: String,
+    NobleFrameId:{
+        type: Schema.Types.ObjectId,
+        ref: 'Frame'
+    },
     hasNobleSpeedUpgrade: Boolean,
+    speedupgradeRate: Number, //rate of speed of Upgrade
     hasNobleNameCard: Boolean,
     NobleNameCardImagePath: String,
     hasNobleChatBubbble: Boolean,
-    NobleChatBubbbleImagePath: String,
+    nobleChatBubbleId:{
+        type: Schema.Types.ObjectId,
+        ref: 'Bubble'
+    },
     hasFlyingComments: Boolean,
     hasNobleRide: Boolean,
+    nobleRideId:{
+        type: Schema.Types.ObjectId,
+        ref: 'Ride'
+    },
     canSendPicturesInRoom: Boolean,
     hasNoKickOut: Boolean,
 });

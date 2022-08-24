@@ -9,23 +9,21 @@ var DeviceSchema = new Schema({
     phoneOsVersion: String,
     phoneScreenSize: String,
     macAddress: String,
-    isBanned: {
-        type: Boolean,
-        default: false
-    },
-    banReason: String,
-    banDate: String,
-    banExpiryDate: String,
-    banningUnbanAdmin: {
-        type: Schema.Types.ObjectId,
-        ref: 'User'
+    deviceBan: {
+        isBanned: {
+            type: Boolean,
+            default: false
+        },
+        banReason: String,
+        banDate: String,
+        banExpiryDate: String,
+        banningAdmin: {
+            uid: String,
+        }
     },
     userList: [
         { 
-            userId: { 
-                type: Schema.Types.ObjectId, 
-                ref: 'User'
-            }
+            uid: String,
         }
     ]
 });
