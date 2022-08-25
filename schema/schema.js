@@ -6,6 +6,7 @@ const checkAuth = require('../utils/check-auth');
 
 const Agency = require('../models/Agency');
 const Bubble = require('../models/Bubble');
+const CoinsSellerTransaction = require('../models/CoinsSellerTransaction');
 const Device = require('../models/Device');
 const Event = require('../models/Event');
 const Family = require('../models/Family');
@@ -102,6 +103,18 @@ const BubbleType = new GraphQLObjectType({
         bubblePrice: { type: GraphQLInt },
     })
 });
+
+//Coin Seller transaction Type
+const CoinsSellerTransactionType = new GraphQLObjectType({
+    name: 'CoinsSellerTransaction',
+    fields: () => ({
+        id: { type: GraphQLID },
+        selleruid: { type: GraphQLInt },
+        uid: { type: GraphQLInt },
+        amount: { type: GraphQLInt },
+        dateTime: { type: GraphQLString },
+    })
+}),
 
 //Device Type
 const DeviceType = new GraphQLObjectType({
@@ -377,6 +390,145 @@ const UserType = new GraphQLObjectType({
                 return UserTag.findById(parent.userTags);
             }
         },
+        walletCoins: { type: GraphQLInt },
+        isCoinSeller: { type: GraphQLBoolean },
+        SellerCoins: { type: GraphQLInt },
+        coinSellerTransactions: {
+            type: new GraphQLList(TransactionType),
+            resolve(parent, args) {
+                return CoinsSellerTransaction.find({selleruid: parent.uid});
+            }
+        },
+        roomId: { type: GraphQLID },
+        isRecruiter: { type: GraphQLBoolean },
+        recruitedAgencies: {
+            type: new GraphQLList(AgencyType),
+            resolve(parent, args) {
+                return Agency.find({agencyRecruiter: parent.uid});
+            }
+        },
+        nobleId: { type: GraphQLID },
+        agencyId: { type: GraphQLID },
+        agencyRole: { type: GraphQLString },
+        familyId: { type: GraphQLID },
+        FamilyRole: { type: GraphQLString },
+        userMedals: {
+            type: new GraphQLList(UserMedalType),
+            resolve(parent, args) {
+                return UserMedal.findById(parent.userMedals);
+            }
+        },
+        blockedUsers: {
+            type: new GraphQLList(UserType),
+            resolve(parent, args) {
+                return User.find({ uid: parent.blockList.uid });
+            }
+        },
+        BannedUser:{
+            isbanned: { type: GraphQLBoolean },
+            banReason: { type: GraphQLString },
+            banDateTime: { type: GraphQLString },
+            banExpiryDate: { type: GraphQLString },
+            bannedby: {
+                type: UserType,
+                resolve(parent, args) {
+                    return User.findOne({ uid: parent.bann.banningUser.uid });
+                }
+            }
+        },
+        userNotifications: {
+            NotificationType: { type: GraphQLString },
+            coinSellerId: {
+                type: UserType,
+                resolve(parent, args) {
+                    return User.findOne({ uid: parent.userNotifications.coinSellerId.uid });
+                }
+            },
+            agencyId: {
+                type: AgencyType,
+                resolve(parent, args) {
+                    return Agency.findById(parent.userNotifications.agencyId.agencyuid);
+                }
+            }
+        },
+        deviceList: {
+            type: new GraphQLList(DeviceType),
+            resolve(parent, args) {
+                return Device.findById(parent.deviceList.deviceId);
+            }
+        },
+        agencyundereOfficial: {
+            type: AgencyType,
+            resolve(parent, args) {
+                return Agency.find({ agencyCreator: parent.uid });
+            }
+        },
+        createdAt: { type: GraphQLString },
     })
 });
 
+//User Medal Type
+const UserMedalType = new GraphQLObjectType({
+    name: 'UserMedal',
+    fields: () => ({
+        id: { type: GraphQLID },
+        medalName: { type: GraphQLString },
+        MedalImagePath: { type: GraphQLString },
+    })
+});
+
+//User Tag Type
+const UserTagType = new GraphQLObjectType({
+    name: 'UserTag',
+    fields: () => ({
+        id: { type: GraphQLID },
+        UserTag: { type: GraphQLString },
+    })
+});
+
+//Verification Type
+const VerificationType = new GraphQLObjectType({
+    name: 'Verification',
+    fields: () => ({
+        id: { type: GraphQLID },
+        verificationType: { type: GraphQLString },
+        VerificationText: { type: GraphQLString },
+    })
+});
+
+const query = new GraphQLObjectType({
+    name: 'RootQueryType',
+    fields: {
+        users: {
+            type: new GraphQLList(UserType),
+            resolve(_, args) {
+                return User.find();
+            }
+        },
+        user: {
+            type: UserType,
+            args: { uid: { type: GraphQLID } },
+            resolve(_, args) {
+                const user = User.findOne({ uid: args.uid });
+                if (!user) {
+                    console.log('User not found');
+                    throw new Error('User not found');
+                }
+                console.log('User found');
+                console.log(user);
+                return user;
+            }
+        },
+        agency: {
+            type: AgencyType,
+            args: { agencyuid: { type: GraphQLID } },
+            resolve(_, args) {
+                const agency = Agency.findOne({ agencyuid: args.agencyuid });
+                if (!agency) {
+                    throw new Error('Agency not found');
+                }
+                return agency;
+            }
+        },
+    }
+});

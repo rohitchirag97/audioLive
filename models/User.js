@@ -63,11 +63,7 @@ var UserSchema = new Schema({
         default: 0
     },
     coinsellerTransactions: [{  
-        soldto: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        },
-        soldtouid: String,
+        uid: String,
         quantity: Number,
         soldDateTime: String,
     }],
@@ -79,12 +75,6 @@ var UserSchema = new Schema({
         type: Boolean,
         default: false
     },
-    recruitedAgencies: [{
-        agencyId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Agency'
-        },
-    }],
     nobleId: {
         type: Schema.Types.ObjectId,
         ref: 'Noble'
@@ -98,13 +88,13 @@ var UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Family'
     },
+    FamilyRole: String, 
     userMedals: [{
         type: Schema.Types.ObjectId,
         ref: 'UserMedal'
     }],
     blockList: [{
-        type: Schema.Types.ObjectId,
-        ref: 'User'
+        uid: String,
     }],
     receivedGifts: [{
         giftId: {
@@ -116,31 +106,29 @@ var UserSchema = new Schema({
             default: 1  
         },
     }],
+    BannedUser: {
+        isbanned: {
+            type: Boolean,
+            default: false
+        },
+        banReason: String,
+        banDateTime: String,
+        banExpiryDate: String,
+        banninguser: {
+            uid: String,
+        },
+    },
     isbanned: {
         type: Boolean,
         default: false
     },
-    banReason: String,
-    banDate: String,
-    banExpiryDate: String,
-    banningUnbanAdmin: {
-        type: Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    userTransactions: [{   
-        coinsamount: Number,
-        transactionDateTime: String,
-        TransactinId: String,
-    }],
     userNotifications: [{
         notificationType: String,
         coinSellerId: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
+            uid: String,
         },
         agencyId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Agency'
+            agencyUid: String,
         },
         agencyUid: String,   
         message: String,
@@ -148,7 +136,7 @@ var UserSchema = new Schema({
         CoinsPurchased: Number,
         notificationDateTime: String,
     }],
-    created_at: {
+    createdAt: {
         type: String
     },
     deviceList: [{
